@@ -187,12 +187,14 @@ function openCreateForm() {
   }
   document.getElementById('cSecPicker').innerHTML = secHtml;
   document.getElementById('cWc').innerHTML = '';
-  if (S.refs.work_conditions) {
-    var wcs = S.refs.work_conditions;
-    for (var wi=0;wi<wcs.length;wi++) {
-      document.getElementById('cWc').innerHTML += '<option value="'+esc(wcs[wi].value||wcs[wi])+'">'+esc(wcs[wi].label||wcs[wi])+'</option>';
-    }
-  }
+      if (S.refs.work_conditions) {
+        var wcs = S.refs.work_conditions;
+        for (var wi=0;wi<wcs.length;wi++) {
+          var wcVal = typeof wcs[wi] === 'string' ? wcs[wi] : (wcs[wi].value || wcs[wi].id || wcs[wi].condition || String(wcs[wi]));
+          var wcLbl = typeof wcs[wi] === 'string' ? wcs[wi] : (wcs[wi].label || wcs[wi].name || wcVal);
+          document.getElementById('cWc').innerHTML += '<option value="'+esc(wcVal)+'">'+esc(wcLbl)+'</option>';
+        }
+      }
   document.getElementById('cKet').value='';
   document.getElementById('cTeamList').innerHTML='';
   addTeamMember();
