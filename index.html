@@ -6,90 +6,165 @@
   <meta name="theme-color" content="#f59e0b">
   <link rel="manifest" href="./manifest.json">
   <link rel="icon" href="./icon-192.png">
-  <title>MAR Mekanik</title>
+  <title>MAR Offline</title>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-    body { font-family: system-ui, -apple-system, sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; }
-    .top { position: sticky; top: 0; background: #1e293b; padding: 12px 14px; display: flex; align-items: center; gap: 10px; border-bottom: 2px solid #f59e0b; z-index: 5; }
-    .top h1 { font-size: 17px; color: #f59e0b; flex: 1; }
-    .dot { width: 10px; height: 10px; border-radius: 50%; background: #ef4444; }
-    .net { font-size: 12px; color: #94a3b8; }
-    .wrap { padding: 14px; max-width: 560px; margin: 0 auto; }
-    .card, .panel { background: #1e293b; border-radius: 12px; padding: 14px; margin-bottom: 12px; border: 1px solid #334155; }
-    .cardTop { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
-    .badge { font-size: 11px; font-weight: 700; color: #fff; padding: 3px 9px; border-radius: 99px; white-space: nowrap; }
-    .cardBody { font-size: 14px; color: #cbd5e1; }
-    .ket { font-size: 13px; color: #fbbf24; margin-top: 6px; background: #78350f33; padding: 6px 8px; border-radius: 8px; }
-    .err { font-size: 13px; color: #fca5a5; margin-top: 8px; background: #7f1d1d33; padding: 8px; border-radius: 8px; }
-    .big { display: block; width: 100%; margin-top: 10px; padding: 13px; font-size: 16px; font-weight: 700; color: #0f172a; background: #f59e0b; border: 0; border-radius: 10px; }
-    .big:active { transform: scale(0.98); }
-    .mini { padding: 6px 12px; font-size: 13px; border: 0; border-radius: 8px; background: #f59e0b; color: #0f172a; font-weight: 700; margin-top: 6px; }
-    .mini.gray { background: #475569; color: #e2e8f0; }
-    .empty { text-align: center; color: #64748b; padding: 40px 10px; line-height: 1.7; }
-    .sub { font-size: 12px; color: #64748b; margin: 4px 0 10px; }
-    input, select { width: 100%; padding: 12px; font-size: 16px; background: #0f172a; color: #e2e8f0; border: 1px solid #475569; border-radius: 10px; margin: 5px 0 12px; }
-    label { font-size: 13px; color: #94a3b8; font-weight: 600; }
-    #toast { display: none; position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); background: #f59e0b; color: #0f172a; font-weight: 700; padding: 11px 18px; border-radius: 10px; font-size: 14px; z-index: 99; max-width: 92vw; text-align: center; }
-    #formModal { display: none; position: fixed; inset: 0; background: rgba(2,6,23,.9); z-index: 50; align-items: flex-end; justify-content: center; }
-    .sheet { background: #1e293b; width: 100%; max-width: 560px; border-radius: 18px 18px 0 0; padding: 18px 16px 24px; max-height: 92vh; overflow-y: auto; }
-    .sheet h2 { font-size: 15px; color: #f59e0b; margin-bottom: 4px; }
-    .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-    .syncbar { display: flex; gap: 10px; align-items: center; margin-bottom: 12px; }
-    .syncbar button { flex: 0 0 auto; }
-    .obinfo { font-size: 13px; color: #fbbf24; font-weight: 700; }
+    *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+    body{font-family:system-ui,-apple-system,sans-serif;background:#0f172a;color:#e2e8f0;min-height:100vh}
+    .top{position:sticky;top:0;background:#1e293b;padding:10px 14px;display:flex;align-items:center;gap:8px;border-bottom:2px solid #f59e0b;z-index:5}
+    .top h1{font-size:16px;color:#f59e0b;flex:1}
+    .dot{width:9px;height:9px;border-radius:50%;background:#ef4444}
+    .net{font-size:11px;color:#94a3b8}
+    .logoutBtn{font-size:11px;color:#64748b;background:none;border:1px solid #475569;border-radius:6px;padding:3px 8px;cursor:pointer}
+    .wrap{padding:12px;max-width:560px;margin:0 auto}
+    .tabBar{display:none;gap:0;margin-bottom:10px;background:#1e293b;border-radius:10px;overflow:hidden;border:1px solid #334155}
+    .tab{flex:1;text-align:center;padding:10px 4px;font-size:13px;font-weight:700;color:#94a3b8;cursor:pointer;border:none;background:none}
+    .tab.active{background:#f59e0b;color:#0f172a}
+    .card,.panel{background:#1e293b;border-radius:12px;padding:13px;margin-bottom:10px;border:1px solid #334155}
+    .cardTop{display:flex;justify-content:space-between;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:5px}
+    .badge{font-size:10px;font-weight:700;color:#fff;padding:2px 8px;border-radius:99px;white-space:nowrap}
+    .cardBody{font-size:13px;color:#cbd5e1;line-height:1.5}
+    .ket{font-size:12px;color:#fbbf24;margin-top:5px;background:#78350f33;padding:5px 8px;border-radius:8px}
+    .err{border-color:#7f1d1d;background:#7f1d1d33;font-size:12px;color:#fca5a5}
+    .big{display:block;width:100%;margin-top:8px;padding:12px;font-size:15px;font-weight:700;color:#0f172a;background:#f59e0b;border:0;border-radius:10px;cursor:pointer}
+    .big:active{transform:scale(0.98)}
+    .big.danger{background:#ef4444;color:#fff}
+    .big.secondary{background:#475569;color:#e2e8f0}
+    .mini{padding:5px 10px;font-size:12px;border:0;border-radius:7px;background:#f59e0b;color:#0f172a;font-weight:700;margin-top:5px;cursor:pointer}
+    .mini.gray{background:#475569;color:#e2e8f0}
+    .empty{text-align:center;color:#64748b;padding:36px 10px;line-height:1.7}
+    .sub{font-size:12px;color:#64748b;margin:3px 0 8px}
+    .inp,select{width:100%;padding:11px;font-size:15px;background:#0f172a;color:#e2e8f0;border:1px solid #475569;border-radius:10px;margin:4px 0 10px}
+    label{font-size:12px;color:#94a3b8;font-weight:600}
+    .row2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+    .secPicker{display:flex;gap:6px;flex-wrap:wrap;margin:4px 0 10px}
+    .secOpt input[type="radio"]{display:none}
+    .secCard{display:inline-block;padding:8px 14px;border:2px solid #475569;border-radius:8px;cursor:pointer;font-weight:700;font-size:13px}
+    .secOpt input:checked+.secCard{border-color:#f59e0b;background:#fffbeb;color:#b45309}
+    .teamRow{display:flex;gap:6px;align-items:center;margin-bottom:6px}
+    .teamRow select{flex:1}
+    .obinfo{font-size:12px;color:#fbbf24;font-weight:700;margin-bottom:6px}
+    .modal{display:none;position:fixed;inset:0;background:rgba(2,6,23,.92);z-index:50;align-items:flex-end;justify-content:center}
+    .sheet{background:#1e293b;width:100%;max-width:560px;border-radius:16px 16px 0 0;padding:16px 14px 22px;max-height:92vh;overflow-y:auto}
+    .sheet h2{font-size:15px;color:#f59e0b;margin-bottom:6px}
+    .sheet .desc{font-size:13px;color:#cbd5e1;margin-bottom:8px;line-height:1.5}
+    #toast{display:none;position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:#f59e0b;color:#0f172a;font-weight:700;padding:10px 16px;border-radius:10px;font-size:13px;z-index:99;max-width:92vw;text-align:center}
+    .syncbar{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+    .syncbar button{flex:0 0 auto}
+    .chkRow{display:flex;align-items:center;gap:6px;margin:6px 0;font-size:13px}
+    .chkRow input[type="checkbox"]{width:18px;height:18px}
   </style>
 </head>
 <body>
   <div class="top">
-    <h1>🔧 MAR Mekanik</h1>
+    <h1>🔧 MAR Offline</h1>
     <span class="dot" id="netDot"></span><span class="net" id="netText">-</span>
+    <button class="logoutBtn" onclick="doLogout()">Logout</button>
   </div>
 
-  <!-- LAYAR LOGIN TOKEN -->
+  <!-- LOGIN -->
   <div class="wrap" id="screen-login" style="display:none">
     <div class="panel">
       <h2 style="color:#f59e0b;font-size:16px;margin-bottom:4px">Masukkan Token</h2>
-      <p class="sub">Token diberikan oleh admin, cukup diisi SEKALI.</p>
-      <input id="tokenInput" placeholder="contoh: a1b2c3d4e5f6..." autocomplete="off">
+      <p class="sub">Token dari admin, cukup diisi SEKALI.</p>
+      <input class="inp" id="tokenInput" placeholder="token..." autocomplete="off">
       <button class="big" onclick="doLogin()">Masuk</button>
     </div>
   </div>
 
-  <!-- LAYAR UTAMA -->
+  <!-- MAIN -->
   <div class="wrap" id="screen-main" style="display:none">
     <div class="syncbar">
       <button class="mini" id="syncBtn" onclick="syncNow(true)">🔄 Sync</button>
-      <div>
-        <div style="font-size:13px;font-weight:700" id="meName"></div>
-        <div class="sub" style="margin:0" id="lastSync"></div>
-      </div>
+      <div><div style="font-size:13px;font-weight:700" id="meName"></div><div class="sub" style="margin:0" id="lastSync"></div></div>
     </div>
     <div class="obinfo" id="outboxInfo"></div>
-    <div id="woList"></div>
+    <div id="failedOps"></div>
+    <div class="tabBar" id="tabBar">
+      <button class="tab active" id="tabWos" onclick="switchTab('wos')">📋 WO Saya</button>
+      <button class="tab" id="tabCreate" onclick="switchTab('create')">➕ Buat WO</button>
+      <button class="tab" id="tabApproval" onclick="switchTab('approval')">✅ Approval</button>
+    </div>
+    <div id="content"></div>
   </div>
 
-  <!-- FORM SUBMIT -->
-  <div id="formModal">
+  <!-- MODAL: Submit (M1) -->
+  <div class="modal" id="submitModal">
     <div class="sheet">
       <h2 id="fTitle">-</h2>
-      <div class="ket" id="fKet" style="margin-bottom:10px"></div>
+      <div class="desc" id="fDesc"></div>
+      <div class="ket" id="fKet" style="display:none"></div>
       <div class="row2">
-        <div><label>Jam Mulai *</label><input type="datetime-local" id="fStart"></div>
-        <div><label>Jam Selesai *</label><input type="datetime-local" id="fEnd"></div>
+        <div><label>Jam Mulai *</label><input type="datetime-local" class="inp" id="fStart"></div>
+        <div><label>Jam Selesai *</label><input type="datetime-local" class="inp" id="fEnd"></div>
       </div>
       <div class="row2">
-        <div><label>Hour Meter (HM) *</label><input type="number" id="fHm" min="0.1" step="any" placeholder="cth: 1250"></div>
-        <div><label>Kilometer (KM) *</label><input type="number" id="fKm" min="0.1" step="any" placeholder="cth: 4500"></div>
+        <div><label>Hour Meter *</label><input type="number" class="inp" id="fHm" min="0.1" step="any" placeholder="1250"></div>
+        <div><label>Kilometer *</label><input type="number" class="inp" id="fKm" min="0.1" step="any" placeholder="4500"></div>
       </div>
-      <label>Spare Part yang Dipakai</label>
-      <select id="fPart">
-        <option value="">Tanpa Part</option>
-        <option value="baru">🆕 Part Baru</option>
-        <option value="repair">🔧 Part Repair</option>
-        <option value="kanibal">♻️ Part Kanibal</option>
-      </select>
-      <button class="big" onclick="queueSubmit()">📮 Simpan &amp; Antre Kirim</button>
-      <button class="big" style="background:#475569;color:#e2e8f0;margin-top:8px" onclick="closeForm()">Batal</button>
+      <label>Spare Part</label>
+      <select class="inp" id="fPart"><option value="">Tanpa Part</option><option value="baru">🆕 Baru</option><option value="repair">🔧 Repair</option><option value="kanibal">♻️ Kanibal</option></select>
+      <button class="big" onclick="queueSubmit()">📮 Simpan & Antre</button>
+      <button class="big secondary" onclick="closeModal('submitModal')">Batal</button>
+    </div>
+  </div>
+
+  <!-- MODAL: Create WO (M2) -->
+  <div class="modal" id="createModal">
+    <div class="sheet">
+      <h2>➕ Buat Work Order</h2>
+      <label>Section *</label>
+      <div class="secPicker" id="cSecPicker"></div>
+      <label>Work Condition *</label>
+      <select class="inp" id="cWc"></select>
+
+      <!-- Tyreman path -->
+      <div id="cTyreGroup">
+        <label>Joblist Tyreman *</label>
+        <select class="inp" id="cComp"></select>
+        <label>Unit *</label>
+        <select class="inp" id="cTyreUnit"></select>
+      </div>
+
+      <!-- Cascade path (field/workshop) -->
+      <div id="cCascadeGroup" style="display:none">
+        <div id="cUnitGroup"><label>Unit *</label><select class="inp" id="cUnit" onchange="onCasUnitOrModel()"></select></div>
+        <div id="cModelGroup" style="display:none"><label>Model Rebuild *</label><select class="inp" id="cModel" onchange="onCasUnitOrModel()"></select></div>
+        <label>Component *</label><select class="inp" id="cCasComp" onchange="onCasComp()"></select>
+        <label>Sub Component *</label><select class="inp" id="cCasSub" onchange="onCasSub()"></select>
+        <label>Job *</label><select class="inp" id="cCasJob"></select>
+      </div>
+
+      <label>Keterangan (opsional)</label>
+      <input class="inp" id="cKet" placeholder="cth: unit di pit 3">
+      <label>Tim Mekanik *</label>
+      <div id="cTeamList"></div>
+      <button class="mini" onclick="addTeamMember()" style="margin-bottom:10px">+ Tambah Mekanik</button>
+      <button class="big" onclick="queueCreate()">📮 Simpan & Antre</button>
+      <button class="big secondary" onclick="closeModal('createModal')">Batal</button>
+    </div>
+  </div>
+
+  <!-- MODAL: Approve/Reject (M3) -->
+  <div class="modal" id="approveModal">
+    <div class="sheet">
+      <h2 id="aTitle">-</h2>
+      <div class="desc" id="aDesc"></div>
+      <div class="sub" id="aTeam"></div>
+      <div class="sub" id="aStatus"></div>
+      <label>Catatan</label>
+      <input class="inp" id="aNotes" placeholder="opsional">
+      <div class="chkRow"><input type="checkbox" id="aSafety"><label>Safety Incident</label></div>
+      <label>MTBF Judgment</label>
+      <select class="inp" id="aMtbf"><option value="first_time">First Time</option><option value="redo">Redo</option></select>
+      <button class="big" id="aBtnL1" onclick="queueApprove(1)">✅ Approve L1</button>
+      <button class="big" id="aBtnL2" onclick="queueApprove(2)">✅ Approve L2 (Award Poin)</button>
+      <button class="big secondary" onclick="toggleRejectSection()">❌ Reject</button>
+      <div id="aRejectSection" style="display:none;margin-top:8px">
+        <label>Alasan Reject *</label>
+        <input class="inp" id="aReason" placeholder="alasan reject wajib diisi">
+        <button class="big danger" onclick="queueReject()">🚫 Kirim Reject</button>
+      </div>
+      <button class="big secondary" onclick="closeModal('approveModal')" style="margin-top:6px">Batal</button>
     </div>
   </div>
 
