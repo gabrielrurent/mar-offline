@@ -204,10 +204,24 @@ function openCreateForm() {
   for (var ri=0;ri<radios.length;ri++) radios[ri].onchange = onCreateSectionChange;
   showModal('createModal');
 }
+function onCompChange() {
+  var isOthers = document.getElementById('cComp').value === 'COM-OTHERS';
+  document.getElementById('cOthersWrap').style.display = isOthers ? 'block' : 'none';
+  document.getElementById('cTyreUnit').parentNode.style.display = isOthers ? 'none' : 'block';
+}
+function onPwaOthersToggle() {
+  var checked = document.getElementById('cOthersCheck').checked;
+  document.getElementById('cCascadeGroup').style.display = checked ? 'none' : 'block';
+  document.getElementById('cOthersWrap').style.display = checked ? 'block' : 'none';
+}
 function onCreateSectionChange() {
   var sec = getCreateSection();
   var isTyre = (sec === 'tyreman');
   var isWs = (sec === 'workshop');
+  // reset Others state
+  document.getElementById('cOthersWrap').style.display = 'none';
+  document.getElementById('cOthersCheckRow').style.display = isTyre ? 'none' : 'block';
+  if (document.getElementById('cOthersCheck')) document.getElementById('cOthersCheck').checked = false;
   document.getElementById('cTyreGroup').style.display = isTyre ? 'block' : 'none';
   document.getElementById('cCascadeGroup').style.display = isTyre ? 'none' : 'block';
   document.getElementById('cUnitGroup').style.display = (isTyre || isWs) ? 'none' : 'block';
@@ -322,17 +336,31 @@ function queueCreate() {
   var wc = document.getElementById('cWc').value;
   if (!wc) { toast('Pilih work condition'); return; }
   var payload = { section:sec, work_condition:wc, keterangan:document.getElementById('cKet').value.trim(), location: sec==='workshop'?'workshop':'field' };
-  if (sec==='tyreman') {
+  var pwaOthers = (sec === 'tyreman' && document.getElementById('cComp').value === 'COM-OTHERS') ||
+                  (sec !== 'tyreman' && document.getElementById('cOthersCheck') && document.getElementById('cOthersCheck').checked);
+  if (pwaOthers) {
+    // Others — semua section
+    var odesc = document.getElementById('cOthersDesc').value.trim();
+    var obp = parseFloat(document.getElementById('cOthersBp').value);
+    var oth = parseFloat(document.getElementById('cOthersTh').value);
+    if (!odesc) { toast('Deskripsi job Others wajib diisi'); return; }
+    if (isNaN(obp) || obp <= 0) { toast('Base points Others wajib > 0'); return; }
+    if (isNaN(oth) || oth <= 0) { toast('Target hours Others wajib > 0'); return; }
+    payload.component_id = 'COM-OTHERS';
+    payload.others_description = odesc;
+    payload.others_base_points = obp;
+    payload.others_target_hours = oth;
+  } else if (sec === 'tyreman') {
     var comp = document.getElementById('cComp').value;
     var unit = document.getElementById('cTyreUnit').value;
     if (!comp) { toast('Pilih joblist tyreman'); return; }
-    if (comp!=='COM-OTHERS' && !unit) { toast('Pilih unit'); return; }
+    if (!unit) { toast('Pilih unit'); return; }
     payload.component_id = comp; payload.unit_id = unit;
   } else {
     var jobSel = document.getElementById('cCasJob');
     if (!jobSel.value) { toast('Pilih job dari katalog'); return; }
     payload.job_id = jobSel.value;
-    if (sec==='field') {
+    if (sec === 'field') {
       var fUnit = document.getElementById('cUnit').value;
       if (!fUnit) { toast('Pilih unit'); return; }
       payload.unit_id = fUnit;
