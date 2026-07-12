@@ -190,7 +190,7 @@ function openCreateForm() {
   if (S.refs.work_conditions) {
     var wcs = S.refs.work_conditions;
     for (var wi=0;wi<wcs.length;wi++) {
-      document.getElementById('cWc').innerHTML += '<option value="'+esc(wcs[wi].value||wcs[wi])+'">'+esc(wcs[wi].label||wcs[wi])+'</option>';
+      document.getElementById('cWc').innerHTML += '<option value="'+esc(wcs[wi].key||wcs[wi].value||wcs[wi])+'">'+esc(wcs[wi].label||wcs[wi])+'</option>';
     }
   }
   document.getElementById('cKet').value='';
