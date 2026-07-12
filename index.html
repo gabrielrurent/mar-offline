@@ -120,9 +120,24 @@
       <!-- Tyreman path -->
       <div id="cTyreGroup">
         <label>Joblist Tyreman *</label>
-        <select class="inp" id="cComp"></select>
+        <select class="inp" id="cComp" onchange="onCompChange()"></select>
         <label>Unit *</label>
         <select class="inp" id="cTyreUnit"></select>
+      </div>
+
+      <!-- Others fields (semua section) -->
+      <div id="cOthersWrap" style="display:none">
+        <label>Deskripsi Job *</label>
+        <input class="inp" id="cOthersDesc" placeholder="cth: perbaikan velg custom">
+        <div class="row2">
+          <div><label>Base Points *</label><input type="number" class="inp" id="cOthersBp" min="0.01" step="any" placeholder="0.5"></div>
+          <div><label>Target Hours *</label><input type="number" class="inp" id="cOthersTh" min="0.01" step="any" placeholder="2"></div>
+        </div>
+      </div>
+
+      <!-- Others toggle (field/workshop) -->
+      <div id="cOthersCheckRow" style="display:none">
+        <label class="chkRow"><input type="checkbox" id="cOthersCheck" onchange="onPwaOthersToggle()">Job manual (Others) — di luar katalog</label>
       </div>
 
       <!-- Cascade path (field/workshop) -->
