@@ -190,7 +190,7 @@ function openCreateForm() {
       if (S.refs.work_conditions) {
         var wcs = S.refs.work_conditions;
         for (var wi=0;wi<wcs.length;wi++) {
-          var wcVal = typeof wcs[wi] === 'string' ? wcs[wi] : (wcs[wi].key || wcs[wi].value || wcs[wi].id || wcs[wi].condition || String(wcs[wi]));
+          var wcVal = typeof wcs[wi] === 'string' ? wcs[wi] : (wcs[wi].key || wcs[wi].key || wcs[wi].value || wcs[wi].id || wcs[wi].condition || String(wcs[wi]));
           var wcLbl = typeof wcs[wi] === 'string' ? wcs[wi] : (wcs[wi].label || wcs[wi].name || wcVal);
           document.getElementById('cWc').innerHTML += '<option value="'+esc(wcVal)+'">'+esc(wcLbl)+'</option>';
         }
