@@ -3,7 +3,7 @@
    Prinsip: CACHE → ANTRE → SINKRON. Server selalu benar.
    ============================================================ */
 
-var CONFIG = { API_URL: 'https://script.google.com/macros/s/AKfycbxVk6kf91AQlFo39XWSBugE0OxUvjhx9bsgBNLSPEkQlSh03fV2Ukl_YLcNhoNWUrqmbA/exec' };
+var CONFIG = { API_URL: 'PASTE_URL_EXEC_DISINI' };
 var S = { token:null, me:null, role:null, wos:[], refs:null, pending:[], outbox:[], lastSync:null, syncing:false, tab:'wos' };
 var db = null;
 
@@ -187,14 +187,12 @@ function openCreateForm() {
   }
   document.getElementById('cSecPicker').innerHTML = secHtml;
   document.getElementById('cWc').innerHTML = '';
-      if (S.refs.work_conditions) {
-        var wcs = S.refs.work_conditions;
-        for (var wi=0;wi<wcs.length;wi++) {
-          var wcVal = typeof wcs[wi] === 'string' ? wcs[wi] : (wcs[wi].key || wcs[wi].key || wcs[wi].value || wcs[wi].id || wcs[wi].condition || String(wcs[wi]));
-          var wcLbl = typeof wcs[wi] === 'string' ? wcs[wi] : (wcs[wi].label || wcs[wi].name || wcVal);
-          document.getElementById('cWc').innerHTML += '<option value="'+esc(wcVal)+'">'+esc(wcLbl)+'</option>';
-        }
-      }
+  if (S.refs.work_conditions) {
+    var wcs = S.refs.work_conditions;
+    for (var wi=0;wi<wcs.length;wi++) {
+      document.getElementById('cWc').innerHTML += '<option value="'+esc(wcs[wi].value||wcs[wi])+'">'+esc(wcs[wi].label||wcs[wi])+'</option>';
+    }
+  }
   document.getElementById('cKet').value='';
   document.getElementById('cTeamList').innerHTML='';
   addTeamMember();
@@ -220,8 +218,10 @@ function onCreateSectionChange() {
   var isWs = (sec === 'workshop');
   // reset Others state
   document.getElementById('cOthersWrap').style.display = 'none';
-  document.getElementById('cOthersCheckRow').style.display = isTyre ? 'none' : 'block';
-  if (document.getElementById('cOthersCheck')) document.getElementById('cOthersCheck').checked = false;
+  var othersCheckRow = document.getElementById('cOthersCheckRow');
+  if (othersCheckRow) othersCheckRow.style.display = isTyre ? 'none' : 'block';
+  var othersCheck = document.getElementById('cOthersCheck');
+  if (othersCheck) othersCheck.checked = false;
   document.getElementById('cTyreGroup').style.display = isTyre ? 'block' : 'none';
   document.getElementById('cCascadeGroup').style.display = isTyre ? 'none' : 'block';
   document.getElementById('cUnitGroup').style.display = (isTyre || isWs) ? 'none' : 'block';
@@ -339,7 +339,6 @@ function queueCreate() {
   var pwaOthers = (sec === 'tyreman' && document.getElementById('cComp').value === 'COM-OTHERS') ||
                   (sec !== 'tyreman' && document.getElementById('cOthersCheck') && document.getElementById('cOthersCheck').checked);
   if (pwaOthers) {
-    // Others — semua section
     var odesc = document.getElementById('cOthersDesc').value.trim();
     var obp = parseFloat(document.getElementById('cOthersBp').value);
     var oth = parseFloat(document.getElementById('cOthersTh').value);
