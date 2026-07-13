@@ -4,7 +4,10 @@
    ============================================================ */
 
 var CONFIG = { API_URL: 'https://script.google.com/macros/s/AKfycbwlwlQvOGVF6FdKkYRNlbgdJCets5L-0AfufMB4_79_HzvoQkeE9aZAqkKZiXCZHXnG6Q/exec' };
-var S = { token:null, me:null, role:null, wos:[], refs:null, pending:[], outbox:[], lastSync:null, syncing:false, tab:'wos' };
+var S = { token:null, me:null, role:null, wos:[], refs:null, refsAt:null, pending:[], outbox:[], lastSync:null, syncing:false, tab:'wos' };
+// PERF: katalog referensi (±1400 job) berat — tarik ulang maks 1x/12 jam.
+var REFS_TTL_MS = 12*60*60*1000;
+function refsStale() { return !S.refs || !S.refsAt || (Date.now() - new Date(S.refsAt).getTime() > REFS_TTL_MS); }
 var db = null;
 
 /* ── IndexedDB ── */
@@ -50,7 +53,9 @@ function syncNow(manual) {
   return flushOutbox()
     .then(function() {
       var tasks = [pullWos()];
-      if (S.role !== 'mechanic') { tasks.push(pullRefs()); tasks.push(pullPending()); }
+      // PERF: refs (katalog job ±1400 baris) hanya bila kadaluarsa (12 jam) —
+      // pending approval tetap ditarik tiap sync karena selalu berubah.
+      if (S.role !== 'mechanic') { tasks.push(pullPending()); if (refsStale()) tasks.push(pullRefs()); }
       return Promise.all(tasks);
     })
     .then(function() { S.lastSync = new Date().toISOString(); return kvSet('last_sync',S.lastSync); })
@@ -85,7 +90,8 @@ function pullRefs() {
   return api('pull_create_refs').then(function(r) {
     if (!r.success) return;
     S.refs = r.result.refs;
-    return kvSet('refs', S.refs);
+    S.refsAt = new Date().toISOString();
+    return kvSet('refs', S.refs).then(function(){ return kvSet('refs_at', S.refsAt); });
   });
 }
 function pullPending() {
@@ -112,11 +118,7 @@ function doLogin() {
           .then(function() { return kvSet('role',S.role); })
           .then(function() {
             // Hanya non-mekanik (planner/approver) yang perlu refs utk Buat WO.
-            if (S.role !== 'mechanic') {
-              return api('pull_create_refs').then(function(refR) {
-                if (refR.success && refR.result && refR.result.refs) { S.refs = refR.result.refs; return kvSet('refs', S.refs); }
-              }).catch(function() {});
-            }
+            if (S.role !== 'mechanic') return pullRefs().catch(function(){});
           })
           .then(function() { showScreen('main'); syncNow(false); });
       } else { toast('❌ '+(r.error||'Token ditolak')); S.token=null; }
@@ -172,7 +174,16 @@ function queueSubmit() {
 
 /* ── M2: Create WO form ── */
 function openCreateForm() {
-  if (!S.refs) { toast('Sync dulu untuk memuat data referensi'); return; }
+  if (!S.refs) {
+    if (navigator.onLine) {
+      toast('⏳ Memuat data referensi...');
+      pullRefs().then(function(){ if (S.refs) openCreateForm(); else toast('❌ Gagal memuat referensi'); })
+        .catch(function(){ toast('❌ Gagal memuat referensi'); });
+    } else { toast('📴 Sync dulu saat ada sinyal untuk memuat referensi'); }
+    return;
+  }
+  // Refs basi → refresh senyap di belakang (dipakai saat form dibuka berikutnya)
+  if (navigator.onLine && refsStale()) { pullRefs().catch(function(){}); }
   // reset form
   var secs = S.refs.sections || [];
   var secHtml = '';
@@ -550,9 +561,9 @@ function renderApprovalTab(el) {
 window.addEventListener('online',function(){renderAll(); syncNow(false);});
 window.addEventListener('offline',renderAll);
 openDb().then(function() {
-  return Promise.all([kvGet('token'),kvGet('me'),kvGet('wos'),kvGet('refs'),kvGet('pending'),kvGet('last_sync'),kvGet('role')]);
+  return Promise.all([kvGet('token'),kvGet('me'),kvGet('wos'),kvGet('refs'),kvGet('pending'),kvGet('last_sync'),kvGet('role'),kvGet('refs_at')]);
 }).then(function(v) {
-  S.token=v[0]||null; S.me=v[1]||null; S.wos=v[2]||[]; S.refs=v[3]||null; S.pending=v[4]||[]; S.lastSync=v[5]||null; S.role=v[6]||'mechanic';
+  S.token=v[0]||null; S.me=v[1]||null; S.wos=v[2]||[]; S.refs=v[3]||null; S.pending=v[4]||[]; S.lastSync=v[5]||null; S.role=v[6]||'mechanic'; S.refsAt=v[7]||null;
   return refreshOutbox();
 }).then(function() {
   if ('serviceWorker' in navigator) {
