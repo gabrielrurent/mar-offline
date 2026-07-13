@@ -209,17 +209,24 @@ function onCompChange() {
 }
 function onPwaOthersToggle() {
   var checked = document.getElementById('cOthersCheck').checked;
-  document.getElementById('cCascadeGroup').style.display = checked ? 'none' : 'block';
+  var sec = getCreateSection();
+  var isTyre = (sec === 'tyreman');
+  if (isTyre) {
+    // Tyreman: sembunyikan joblist+unit group saat Others aktif
+    document.getElementById('cTyreGroup').style.display = checked ? 'none' : 'block';
+  } else {
+    document.getElementById('cCascadeGroup').style.display = checked ? 'none' : 'block';
+  }
   document.getElementById('cOthersWrap').style.display = checked ? 'block' : 'none';
 }
 function onCreateSectionChange() {
   var sec = getCreateSection();
   var isTyre = (sec === 'tyreman');
   var isWs = (sec === 'workshop');
-  // reset Others state
+  // reset Others state — semua section tampilkan checkbox Others
   document.getElementById('cOthersWrap').style.display = 'none';
   var othersCheckRow = document.getElementById('cOthersCheckRow');
-  if (othersCheckRow) othersCheckRow.style.display = isTyre ? 'none' : 'block';
+  if (othersCheckRow) othersCheckRow.style.display = 'block'; // semua section tampilkan checkbox
   var othersCheck = document.getElementById('cOthersCheck');
   if (othersCheck) othersCheck.checked = false;
   document.getElementById('cTyreGroup').style.display = isTyre ? 'block' : 'none';
@@ -228,9 +235,13 @@ function onCreateSectionChange() {
   document.getElementById('cModelGroup').style.display = isWs ? 'block' : 'none';
   if (isTyre) {
     var cSel = document.getElementById('cComp');
-    cSel.innerHTML = '<option value="">-- Pilih --</option>';
+    cSel.innerHTML = '<option value="">-- Pilih Joblist --</option>';
     var comps = S.refs.components || [];
-    for (var ci=0;ci<comps.length;ci++) cSel.innerHTML += '<option value="'+esc(comps[ci].component_no)+'">'+esc(comps[ci].component_name)+'</option>';
+    // Hanya tampilkan COM-001 s/d COM-005 (bukan COM-OTHERS — sudah pakai checkbox)
+    for (var ci=0;ci<comps.length;ci++) {
+      if (comps[ci].component_no === 'COM-OTHERS') continue;
+      cSel.innerHTML += '<option value="'+esc(comps[ci].component_no)+'">'+esc(comps[ci].component_name)+'</option>';
+    }
     populateTyreUnits();
   } else {
     populateCascadeRoot(sec);
@@ -336,8 +347,9 @@ function queueCreate() {
   var wc = document.getElementById('cWc').value;
   if (!wc) { toast('Pilih work condition'); return; }
   var payload = { section:sec, work_condition:wc, keterangan:document.getElementById('cKet').value.trim(), location: sec==='workshop'?'workshop':'field' };
-  var pwaOthers = (sec === 'tyreman' && document.getElementById('cComp').value === 'COM-OTHERS') ||
-                  (sec !== 'tyreman' && document.getElementById('cOthersCheck') && document.getElementById('cOthersCheck').checked);
+  // Semua section pakai checkbox Others — konsisten
+  var othersChk = document.getElementById('cOthersCheck');
+  var pwaOthers = othersChk && othersChk.checked;
   if (pwaOthers) {
     var odesc = document.getElementById('cOthersDesc').value.trim();
     var obp = parseFloat(document.getElementById('cOthersBp').value);
