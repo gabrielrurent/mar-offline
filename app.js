@@ -3,7 +3,7 @@
    Prinsip: CACHE → ANTRE → SINKRON. Server selalu benar.
    ============================================================ */
 
-var CONFIG = { API_URL: 'https://script.google.com/macros/s/AKfycbwuNYOiQ6-h5otm6KzLrIW2lDITak4XRbfrhL5DL2b2QE4TBMaH090dl1JjoCvcMHe-Vw/exec' };
+var CONFIG = { API_URL: 'https://script.google.com/macros/s/AKfycbwlwlQvOGVF6FdKkYRNlbgdJCets5L-0AfufMB4_79_HzvoQkeE9aZAqkKZiXCZHXnG6Q/exec' };
 var S = { token:null, me:null, role:null, wos:[], refs:null, pending:[], outbox:[], lastSync:null, syncing:false, tab:'wos' };
 var db = null;
 
