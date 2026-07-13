@@ -205,8 +205,14 @@ function onCompChange() {
 }
 function onPwaOthersToggle() {
   var checked = document.getElementById('cOthersCheck').checked;
-  document.getElementById('cCascadeGroup').style.display = checked ? 'none' : 'block';
   document.getElementById('cOthersWrap').style.display = checked ? 'block' : 'none';
+  if (checked) {
+    // Job manual: sembunyikan SEMUA picker katalog (tyreman & cascade), pakai deskripsi
+    document.getElementById('cTyreGroup').style.display = 'none';
+    document.getElementById('cCascadeGroup').style.display = 'none';
+  } else {
+    onCreateSectionChange(); // kembalikan picker sesuai section
+  }
 }
 function onCreateSectionChange() {
   var sec = getCreateSection();
@@ -215,7 +221,7 @@ function onCreateSectionChange() {
   // reset Others state
   document.getElementById('cOthersWrap').style.display = 'none';
   var othersCheckRow = document.getElementById('cOthersCheckRow');
-  if (othersCheckRow) othersCheckRow.style.display = isTyre ? 'none' : 'block';
+  if (othersCheckRow) othersCheckRow.style.display = 'block'; // Others via centang di SEMUA section
   var othersCheck = document.getElementById('cOthersCheck');
   if (othersCheck) othersCheck.checked = false;
   document.getElementById('cTyreGroup').style.display = isTyre ? 'block' : 'none';
@@ -226,7 +232,10 @@ function onCreateSectionChange() {
     var cSel = document.getElementById('cComp');
     cSel.innerHTML = '<option value="">-- Pilih --</option>';
     var comps = S.refs.components || [];
-    for (var ci=0;ci<comps.length;ci++) cSel.innerHTML += '<option value="'+esc(comps[ci].component_no)+'">'+esc(comps[ci].component_name)+'</option>';
+    for (var ci=0;ci<comps.length;ci++) {
+      if (String(comps[ci].component_no) === 'COM-OTHERS') continue; // Others lewat centang, bukan dropdown
+      cSel.innerHTML += '<option value="'+esc(comps[ci].component_no)+'">'+esc(comps[ci].component_name)+'</option>';
+    }
     populateTyreUnits();
   } else {
     populateCascadeRoot(sec);
@@ -332,8 +341,8 @@ function queueCreate() {
   var wc = document.getElementById('cWc').value;
   if (!wc) { toast('Pilih work condition'); return; }
   var payload = { section:sec, work_condition:wc, keterangan:document.getElementById('cKet').value.trim(), location: sec==='workshop'?'workshop':'field' };
-  var pwaOthers = (sec === 'tyreman' && document.getElementById('cComp').value === 'COM-OTHERS') ||
-                  (sec !== 'tyreman' && document.getElementById('cOthersCheck') && document.getElementById('cOthersCheck').checked);
+  var _oc = document.getElementById('cOthersCheck');
+  var pwaOthers = !!(_oc && _oc.checked); // Others via centang, seragam semua section
   if (pwaOthers) {
     var odesc = document.getElementById('cOthersDesc').value.trim();
     var obp = parseFloat(document.getElementById('cOthersBp').value);
@@ -461,7 +470,7 @@ function badgeFor(wo,pendingOp) {
   if (pendingOp) {
     if (pendingOp.status==='queued') return ['📮 Antre','#b45309'];
     if (pendingOp.status==='failed') return ['❌ Ditolak','#b91c1c'];
-    if (pendingOp.status==='done') return ['✅ Terkirim','#15803d'];
+    // 'done' TIDAK menimpa: pakai status asli WO agar berubah (Terkirim→L1→L2→Approved) setelah sync
   }
   var s=String(wo.status||'');
   if (s==='pending_mechanic_work') return ['📝 Perlu diisi','#1d4ed8'];
@@ -546,8 +555,23 @@ openDb().then(function() {
   S.token=v[0]||null; S.me=v[1]||null; S.wos=v[2]||[]; S.refs=v[3]||null; S.pending=v[4]||[]; S.lastSync=v[5]||null; S.role=v[6]||'mechanic';
   return refreshOutbox();
 }).then(function() {
-  if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js');
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./sw.js');
+    // Auto-reload SEKALI saat SW baru mengambil alih → update otomatis, user TIDAK perlu hapus cache.
+    var _swReloaded = false;
+    navigator.serviceWorker.addEventListener('controllerchange', function() {
+      if (_swReloaded) return; _swReloaded = true; window.location.reload();
+    });
+  }
   showScreen(S.token?'main':'login');
   renderAll();
-  if (S.token && navigator.onLine) syncNow(false);
+  if (S.token && navigator.onLine) {
+    // Refresh role dari server tiap buka (self-heal role lama yg salah — tanpa perlu logout/login).
+    api('ping').then(function(r){
+      if (r.success && r.result && r.result.role && r.result.role !== S.role) {
+        S.role = r.result.role; kvSet('role', S.role); renderAll();
+      }
+    }).catch(function(){});
+    syncNow(false);
+  }
 });
