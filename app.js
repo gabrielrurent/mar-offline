@@ -106,22 +106,18 @@ function doLogin() {
     api('ping').then(function(r) {
       if (r.success) {
         S.me = r.result;
-        // deteksi role dari data mekanik
-        var mechObj = null;
-        // ping returns mechanic_id — cek apakah dia supervisor/superintendent lewat pull refs
+        // Role ASLI dari backend (bukan tebakan). Mekanik = hanya WO Saya.
+        S.role = (r.result && r.result.role) ? r.result.role : 'mechanic';
         return kvSet('token',t).then(function() { return kvSet('me',S.me); })
-          .then(function() { return api('pull_create_refs'); })
-          .then(function(refR) {
-            if (refR.success && refR.result && refR.result.refs) {
-              S.refs = refR.result.refs;
-              S.role = 'creator'; // bisa create = bukan mechanic biasa
-              return kvSet('refs', S.refs);
-            } else {
-              S.role = 'mechanic';
+          .then(function() { return kvSet('role',S.role); })
+          .then(function() {
+            // Hanya non-mekanik (planner/approver) yang perlu refs utk Buat WO.
+            if (S.role !== 'mechanic') {
+              return api('pull_create_refs').then(function(refR) {
+                if (refR.success && refR.result && refR.result.refs) { S.refs = refR.result.refs; return kvSet('refs', S.refs); }
+              }).catch(function() {});
             }
           })
-          .catch(function() { S.role = 'mechanic'; })
-          .then(function() { return kvSet('role',S.role); })
           .then(function() { showScreen('main'); syncNow(false); });
       } else { toast('❌ '+(r.error||'Token ditolak')); S.token=null; }
     }).catch(function() { saveTokenOffline(t); });
