@@ -63,6 +63,29 @@ function doInstall() {
   _installPrompt.userChoice.then(function(){ _installPrompt = null; });
 }
 
+/* ── Notifikasi ── */
+function requestNotifPermission() {
+  try { if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission(); } catch (e) {}
+}
+function notifyLocal(body) {
+  try {
+    if ('Notification' in window && Notification.permission === 'granted' && 'serviceWorker' in navigator) {
+      navigator.serviceWorker.ready.then(function(reg){ return reg.showNotification('MAR Offline', {body: body, icon: './icon-192.png', badge: './icon-192.png', tag: 'mar-info'}); }).catch(function(){});
+    }
+  } catch (e) {}
+}
+/* Periodic Background Sync (PWA ter-instal): Chrome bangunkan SW berkala →
+   flush antrean + cek WO pending → push notif. Interval diatur Chrome (≥ jam-jaman). */
+function requestPeriodicSync() {
+  try {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.ready.then(function(reg) {
+        if ('periodicSync' in reg) return reg.periodicSync.register('mar-check', {minInterval: 60 * 60 * 1000});
+      }).catch(function(){});
+    }
+  } catch (e) {}
+}
+
 /* ── Background Sync: minta Chrome kirim antrean nanti walau app ditutup ── */
 function requestBgSync() {
   try {
@@ -75,10 +98,15 @@ function requestBgSync() {
 /* ── Sync ── */
 function syncNow(manual) {
   if (S.syncing) return Promise.resolve();
+  if (manual) requestNotifPermission();
   if (!navigator.onLine) { requestBgSync(); if (manual) toast('📴 Offline — data aman di antrean, terkirim otomatis saat ada sinyal'); renderAll(); return Promise.resolve(); }
   S.syncing = true; renderAll();
   return flushOutbox()
-    .then(function() {
+    .then(function(sent) {
+      if (sent > 0) {
+        toast('✅ '+sent+' operasi terkirim — tidak lagi antre');
+        if (document.hidden) notifyLocal('✅ '+sent+' operasi terkirim — tidak lagi antre');
+      }
       var tasks = [pullWos()];
       // PERF: refs (katalog job ±1400 baris) hanya bila kadaluarsa (12 jam) —
       // pending approval tetap ditarik tiap sync karena selalu berubah.
@@ -91,19 +119,20 @@ function syncNow(manual) {
     .then(renderAll);
 }
 function flushOutbox() {
+  var sent = 0;
   return obAll().then(function(items) {
     var queue = items.filter(function(it){return it.status==='queued'||it.status==='failed_retry';});
     var chain = Promise.resolve();
     queue.forEach(function(it) {
       chain = chain.then(function() {
         return api(it.action, it.payload, it.op_id).then(function(r) {
-          if (r.success) { it.status='done'; it.result=r.result; }
+          if (r.success) { it.status='done'; it.result=r.result; sent++; }
           else { it.status='failed'; it.error=(typeof r.error==='string')?r.error:JSON.stringify(r.error); }
           return obPut(it);
         }).catch(function() { return obPut(it).then(function(){throw new Error('koneksi terputus');}); });
       });
     });
-    return chain;
+    return chain.then(function(){ return sent; });
   });
 }
 function pullWos() {
@@ -148,6 +177,7 @@ function refreshOutbox() { return obAll().then(function(o){S.outbox=o||[];}); }
 function doLogin() {
   var t = document.getElementById('tokenInput').value.trim();
   if (!t) { toast('Isi token dulu'); return; }
+  requestNotifPermission(); requestPeriodicSync();
   S.token = t;
   if (navigator.onLine) {
     api('ping').then(function(r) {
@@ -797,6 +827,7 @@ openDb().then(function() {
     });
   }
   showScreen(S.token?'main':'login');
+  if (S.token) requestPeriodicSync();
   renderAll();
   if (S.token && navigator.onLine) {
     // Refresh role dari server tiap buka (self-heal role lama yg salah — tanpa perlu logout/login).
