@@ -500,9 +500,10 @@ function openApproveForm(woId) {
   var atl = a.timeliness;
   document.getElementById('aDesc').innerHTML = '<b>'+esc(a.component_name||'-')+'</b>'+(a.is_others?' <span class="badge" style="background:#0ea5e9">OTHERS</span>':'')+'<br>'+
     (a.unit_name?'🚜 '+esc(a.unit_name)+'<br>':'')+
+    '📍 Lokasi: '+esc(locLabel(a.location))+'<br>'+
     'Kondisi: '+esc(wcLabel(a.work_condition))+'<br>'+
     'Base Points: '+(a.base_points||0)+' pts<br>'+
-    'Target: '+(a.target_hours||0)+' jam · Aktual: '+(a.actual_hours||'-')+' jam'+
+    'Target: '+fmtJamMenit(a.target_hours)+' · Aktual: '+fmtJamMenit(a.actual_hours)+
     (atl ? ' ('+esc(atl.label)+' ×'+atl.factor+')' : '')+'<br>'+
     'Unit Factor: '+(a.unit_factor||1)+' 🔒<br>'+
     '🔧 Part: '+esc(partLabel(a.part_category))+
@@ -668,6 +669,16 @@ function renderCreateTab(el) {
 }
 function wcLabel(wc){ return wc==='normal'?'Shift 1':wc==='difficult'?'Shift 2':wc==='extreme'?'Kondisi Ekstrim':(wc||'-'); }
 function partLabel(p){ return p==='baru'?'🆕 Sparepart Baru':p==='repair'?'🔧 Repair':p==='kanibal'?'♻️ Kanibal':(p||'Tanpa Part'); }
+function locLabel(l){ return l==='field'?'Lapangan':l==='workshop'?'Bengkel':(l||'-'); }
+function fmtJamMenit(h){
+  h=parseFloat(h)||0;
+  if(h<=0) return '-';
+  var j=Math.floor(h), m=Math.round((h-j)*60);
+  if(m===60){ j++; m=0; }
+  if(j>0&&m>0) return j+' jam '+m+' menit';
+  if(j>0) return j+' jam';
+  return m+' menit';
+}
 function renderApprovalTab(el) {
   var subs = [['pending','✅ Pending',S.pending.length],['active','⏳ Aktif',S.active.length],['approved','🏆 Approved',S.approved.length]];
   var bar = '<div class="tabBar" style="display:flex;margin-bottom:12px">'+subs.map(function(s){
@@ -696,7 +707,8 @@ function renderPendingList(){
     html+='<div class="card"><div class="cardTop"><b>'+esc(wo.wo_number)+'</b><span class="badge" style="background:'+(isL2?'#b45309':'#7c3aed')+'">'+(isL2?'⏳ L2':'⏳ L1')+'</span>'+
       '<span class="badge" style="background:#334155">'+esc(wo.section)+'</span>'+othersBadge+tlBadge+ovBadges(wo)+'</div>'+
       '<div class="cardBody"><b>'+esc(wo.component_name||'-')+'</b>'+(wo.unit_name?' · '+esc(wo.unit_name):'')+'<br>'+
-      'Kondisi: '+esc(wcLabel(wo.work_condition))+' · Aktual: '+(wo.actual_hours||'-')+' jam · Target: '+(wo.target_hours||0)+' jam<br>'+
+      '📍 Lokasi: '+esc(locLabel(wo.location))+'<br>'+
+      'Kondisi: '+esc(wcLabel(wo.work_condition))+' · Aktual: '+fmtJamMenit(wo.actual_hours)+' · Target: '+fmtJamMenit(wo.target_hours)+'<br>'+
       'Base: '+(wo.base_points||0)+' pts · Unit Factor: '+(wo.unit_factor||1)+' 🔒<br>'+
       '🔧 Part: '+esc(partLabel(wo.part_category))+
       (wo.hour_meter?' · HM: '+esc(wo.hour_meter):'')+(wo.kilometers?' · KM: '+esc(wo.kilometers):'')+
@@ -714,6 +726,7 @@ function renderActiveList(){
     html+='<div class="card"><div class="cardTop"><b>'+esc(wo.wo_number)+'</b><span class="badge" style="background:#1d4ed8">📝 Belum diisi</span>'+
       (wo.section?'<span class="badge" style="background:#334155">'+esc(wo.section)+'</span>':'')+othersBadge+'</div>'+
       '<div class="cardBody"><b>'+esc(wo.component_name||'-')+'</b><br>'+
+      '📍 Lokasi: '+esc(locLabel(wo.location))+'<br>'+
       'Kondisi: '+esc(wcLabel(wo.work_condition))+(wo.created_by?' · Pembuat: '+esc(wo.created_by):'')+'<br>'+
       '👥 Tim: '+(wo.team_names||[]).map(function(n){return esc(n);}).join(', ')+'</div>'+
       (wo.keterangan?'<div class="ket">📝 '+esc(wo.keterangan)+'</div>':'')+cancelBtn(wo)+'</div>';
@@ -729,8 +742,9 @@ function renderApprovedList(){
     html+='<div class="card"><div class="cardTop"><b>'+esc(wo.wo_number)+'</b><span class="badge" style="background:#15803d">✅ Approved</span>'+
       (wo.section?'<span class="badge" style="background:#334155">'+esc(wo.section)+'</span>':'')+othersBadge+safety+'</div>'+
       '<div class="cardBody"><b>'+esc(wo.component_name||'-')+'</b><br>'+
+      '📍 Lokasi: '+esc(locLabel(wo.location))+'<br>'+
       'Poin: '+(wo.final_points||0)+' · Rp '+fmtIdr(wo.final_idr||0)+'<br>'+
-      'Aktual: '+(wo.actual_hours||0)+' jam'+(wo.part_category?' · 🔧 '+esc(partLabel(wo.part_category)):'')+
+      'Aktual: '+fmtJamMenit(wo.actual_hours)+(wo.part_category?' · 🔧 '+esc(partLabel(wo.part_category)):'')+
       (wo.created_at_str?' · '+esc(wo.created_at_str):'')+'<br>'+
       '👥 Tim: '+(wo.team_names||[]).map(function(n){return esc(n);}).join(', ')+'</div>'+
       (wo.keterangan?'<div class="ket">📝 '+esc(wo.keterangan)+'</div>':'')+cancelBtn(wo)+'</div>';
