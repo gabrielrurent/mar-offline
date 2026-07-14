@@ -4,7 +4,7 @@
    ============================================================ */
 
 var CONFIG = { API_URL: 'https://script.google.com/macros/s/AKfycbwlwlQvOGVF6FdKkYRNlbgdJCets5L-0AfufMB4_79_HzvoQkeE9aZAqkKZiXCZHXnG6Q/exec' };
-var S = { token:null, me:null, role:null, wos:[], refs:null, refsAt:null, pending:[], outbox:[], lastSync:null, syncing:false, tab:'wos' };
+var S = { token:null, me:null, role:null, wos:[], refs:null, refsAt:null, pending:[], outbox:[], lastSync:null, syncing:false, tab:'wos', showOutbox:false };
 // PERF: katalog referensi (±1400 job) berat — tarik ulang maks 1x/12 jam.
 var REFS_TTL_MS = 12*60*60*1000;
 function refsStale() { return !S.refs || !S.refsAt || (Date.now() - new Date(S.refsAt).getTime() > REFS_TTL_MS); }
@@ -481,6 +481,13 @@ function toast(msg) {
   var t=document.getElementById('toast'); t.textContent=msg; t.style.display='block';
   clearTimeout(t._h); t._h=setTimeout(function(){t.style.display='none';},3500);
 }
+function toggleOutboxDetail(){ S.showOutbox = !S.showOutbox; renderAll(); }
+function fmtDateTime(iso){
+  if(!iso) return '-';
+  var d = new Date(iso);
+  if(isNaN(d.getTime())) return '-';
+  return d.toLocaleString('id-ID',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
+}
 function badgeFor(wo,pendingOp) {
   if (pendingOp) {
     if (pendingOp.status==='queued') return ['📮 Antre','#b45309'];
@@ -510,9 +517,20 @@ function renderAll() {
   document.getElementById('tabWos').className = 'tab'+(S.tab==='wos'?' active':'');
   document.getElementById('tabCreate').className = 'tab'+(S.tab==='create'?' active':'');
   document.getElementById('tabApproval').className = 'tab'+(S.tab==='approval'?' active':'');
-  // outbox info
-  var pend = S.outbox.filter(function(o){return o.status==='queued'||o.status==='failed_retry';}).length;
-  document.getElementById('outboxInfo').textContent = pend?('📮 '+pend+' menunggu sinyal'):'';
+  // outbox info — bisa diklik utk lihat WO mana yg mengantre + waktu masuk antrean
+  var queued = S.outbox.filter(function(o){return o.status==='queued'||o.status==='failed_retry';});
+  var oi = document.getElementById('outboxInfo');
+  oi.textContent = queued.length ? ('📮 '+queued.length+' menunggu sinyal '+(S.showOutbox?'▲':'▼')) : '';
+  var od = document.getElementById('outboxDetail');
+  if (queued.length && S.showOutbox) {
+    od.style.display='block';
+    od.innerHTML = queued.map(function(o){
+      return '<div class="card" style="padding:10px;margin-bottom:6px">'+
+        '<b>'+esc(o.label||o.action)+'</b>'+(o.wo_number?' — '+esc(o.wo_number):'')+
+        '<div class="sub" style="margin:2px 0 0">🕒 Masuk antrean: '+esc(fmtDateTime(o.created_at))+'</div>'+
+        '</div>';
+    }).join('');
+  } else { od.style.display='none'; od.innerHTML=''; }
   // failed outbox
   var failHtml = '';
   S.outbox.filter(function(o){return o.status==='failed';}).forEach(function(o) {

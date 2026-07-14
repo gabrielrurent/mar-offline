@@ -89,7 +89,8 @@
       <button class="mini" id="syncBtn" onclick="syncNow(true)">🔄 Sync</button>
       <div><div style="font-size:13px;font-weight:700" id="meName"></div><div class="sub" style="margin:0" id="lastSync"></div></div>
     </div>
-    <div class="obinfo" id="outboxInfo"></div>
+    <div class="obinfo" id="outboxInfo" onclick="toggleOutboxDetail()" style="cursor:pointer"></div>
+    <div id="outboxDetail" style="display:none;margin-bottom:8px"></div>
     <div id="failedOps"></div>
     <div class="tabBar" id="tabBar">
       <button class="tab active" id="tabWos" onclick="switchTab('wos')">📋 WO Saya</button>
