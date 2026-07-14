@@ -46,6 +46,8 @@ function api(action,data,opId) {
 }
 
 /* ── Install PWA: tombol 1-tap via beforeinstallprompt ── */
+var IS_IOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+var IS_STANDALONE = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true;
 var _installPrompt = null;
 window.addEventListener('beforeinstallprompt', function(e) {
   e.preventDefault();
@@ -58,6 +60,7 @@ window.addEventListener('appinstalled', function() {
   toast('✅ Terinstal! Buka dari ikon MAR di layar utama.');
 });
 function doInstall() {
+  if (IS_IOS) { showModal('iosModal'); return; } // iOS: tak ada prompt otomatis → panduan
   if (!_installPrompt) { toast('Buka menu Chrome ⋮ → "Instal aplikasi" / "Tambahkan ke layar utama"'); return; }
   _installPrompt.prompt();
   _installPrompt.userChoice.then(function(){ _installPrompt = null; });
@@ -828,6 +831,8 @@ openDb().then(function() {
   }
   showScreen(S.token?'main':'login');
   if (S.token) requestPeriodicSync();
+  // iOS: beforeinstallprompt tak pernah ada → tampilkan tombol Instal manual (panduan)
+  if (IS_IOS && !IS_STANDALONE) { var _ib = document.getElementById('installBtn'); if (_ib) _ib.style.display = ''; }
   renderAll();
   if (S.token && navigator.onLine) {
     // Refresh role dari server tiap buka (self-heal role lama yg salah — tanpa perlu logout/login).

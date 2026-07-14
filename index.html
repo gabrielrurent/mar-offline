@@ -6,6 +6,11 @@
   <meta name="theme-color" content="#2563EB">
   <link rel="manifest" href="./manifest.json">
   <link rel="icon" href="./icon-192.png">
+  <!-- iOS: dukungan Add to Home Screen (Safari tidak baca manifest sepenuhnya) -->
+  <link rel="apple-touch-icon" href="./icon-192.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="MAR Mekanik">
   <title>MAR Offline</title>
   <style>
     /* ===== DESIGN SYSTEM ENTERPRISE (token identik dgn web GAS Theme.gs) ===== */
@@ -216,6 +221,21 @@
       <input class="inp" id="cxReason" placeholder="alasan wajib diisi">
       <button class="big danger" onclick="queueCancel()">🚫 Batalkan WO</button>
       <button class="big secondary" onclick="closeModal('cancelModal')">Kembali</button>
+    </div>
+  </div>
+
+  <!-- MODAL: panduan instal iPhone/iPad (iOS tak punya prompt instal otomatis) -->
+  <div class="modal" id="iosModal">
+    <div class="sheet">
+      <h2>📲 Instal di iPhone / iPad</h2>
+      <div class="desc" style="line-height:1.9">
+        1. Buka link ini di <b>Safari</b><br>
+        2. Tap tombol <b>Bagikan</b> <span style="border:1px solid var(--border);border-radius:6px;padding:1px 7px">⬆️</span> di bawah layar<br>
+        3. Scroll → pilih <b>"Tambahkan ke Layar Utama"</b> (Add to Home Screen)<br>
+        4. Tap <b>Tambah</b> — ikon <b>MAR Mekanik</b> muncul di layar utama
+      </div>
+      <div class="sub">Dari Chrome iPhone: tombol Bagikan → Add to Home Screen (sama).</div>
+      <button class="big secondary" onclick="closeModal('iosModal')">Tutup</button>
     </div>
   </div>
 
