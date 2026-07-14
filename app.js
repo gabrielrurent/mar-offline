@@ -203,6 +203,7 @@ function openCreateForm() {
     document.getElementById('cWc').innerHTML += '<option value="'+esc(wcs[wi].key||wcs[wi].value||wcs[wi])+'">'+esc(wcs[wi].label||wcs[wi])+'</option>';
   }
   document.getElementById('cKet').value='';
+  ['cOthersDesc','cOthersBp','cOthersTh','cOthersUf'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; });
   document.getElementById('cTeamList').innerHTML='';
   S.crossFunc=false; var _cf=document.getElementById('cCrossFunc'); if(_cf) _cf.checked=false;
   addTeamMember();
@@ -365,13 +366,16 @@ function queueCreate() {
     var odesc = document.getElementById('cOthersDesc').value.trim();
     var obp = parseFloat(document.getElementById('cOthersBp').value);
     var oth = parseFloat(document.getElementById('cOthersTh').value);
+    var ouf = parseFloat(document.getElementById('cOthersUf').value);
     if (!odesc) { toast('Deskripsi job Others wajib diisi'); return; }
     if (isNaN(obp) || obp <= 0) { toast('Base points Others wajib > 0'); return; }
     if (isNaN(oth) || oth <= 0) { toast('Target hours Others wajib > 0'); return; }
+    if (isNaN(ouf) || ouf <= 0) { toast('Unit factor Others wajib > 0'); return; }
     payload.component_id = 'COM-OTHERS';
     payload.others_description = odesc;
     payload.others_base_points = obp;
     payload.others_target_hours = oth;
+    payload.others_unit_factor = ouf;
   } else if (sec === 'tyreman') {
     var comp = document.getElementById('cComp').value;
     var unit = document.getElementById('cTyreUnit').value;
@@ -415,12 +419,17 @@ function openApproveForm(woId) {
   if (!activeApproval) return;
   var a = activeApproval;
   document.getElementById('aTitle').textContent = a.wo_number;
+  var atl = a.timeliness;
   document.getElementById('aDesc').innerHTML = '<b>'+esc(a.component_name||'-')+'</b>'+(a.is_others?' <span class="badge" style="background:#0ea5e9">OTHERS</span>':'')+'<br>'+
-    (a.unit_name?esc(a.unit_name)+' · ':'')+'Target: '+(a.target_hours||0)+' jam'+
-    (a.work_condition ? '<br>Kondisi: '+esc(wcLabel(a.work_condition)) : '')+
-    (a.actual_hours ? '<br>Aktual: '+a.actual_hours+' jam' : '')+
-    (a.part_category ? '<br>🔧 Part: '+esc(a.part_category) : '')+
+    (a.unit_name?'🚜 '+esc(a.unit_name)+'<br>':'')+
+    'Kondisi: '+esc(wcLabel(a.work_condition))+'<br>'+
+    'Base Points: '+(a.base_points||0)+' pts<br>'+
+    'Target: '+(a.target_hours||0)+' jam · Aktual: '+(a.actual_hours||'-')+' jam'+
+    (atl ? ' ('+esc(atl.label)+' ×'+atl.factor+')' : '')+'<br>'+
+    'Unit Factor: '+(a.unit_factor||1)+' 🔒<br>'+
+    '🔧 Part: '+esc(partLabel(a.part_category))+
     (a.hour_meter ? '<br>HM: '+esc(a.hour_meter) : '')+(a.kilometers ? ' · KM: '+esc(a.kilometers) : '')+
+    (a.created_by ? '<br>👤 Pembuat: '+esc(a.created_by) : '')+
     (a.keterangan ? '<br>📝 '+esc(a.keterangan) : '');
   document.getElementById('aTeam').textContent = 'Tim: '+(a.team||[]).map(function(t){return t.name;}).join(', ');
   document.getElementById('aStatus').textContent = 'Status: '+a.status;
@@ -579,18 +588,22 @@ function renderCreateTab(el) {
   el.innerHTML='<button class="big" onclick="openCreateForm()" style="margin-bottom:12px">➕ Buat Work Order Baru</button>'+
     '<div class="sub">Data referensi: '+(S.refs.jobs_field||[]).length+' job field, '+(S.refs.jobs_workshop||[]).length+' job WS, '+(S.refs.components||[]).length+' komponen tyreman</div>';
 }
-function wcLabel(wc){ return wc==='normal'?'Ringan':wc==='difficult'?'Sedang':wc==='extreme'?'Berat':(wc||'-'); }
+function wcLabel(wc){ return wc==='normal'?'Shift 1':wc==='difficult'?'Shift 2':wc==='extreme'?'Kondisi Ekstrim':(wc||'-'); }
+function partLabel(p){ return p==='baru'?'🆕 Sparepart Baru':p==='repair'?'🔧 Repair':p==='kanibal'?'♻️ Kanibal':(p||'Tanpa Part'); }
 function renderApprovalTab(el) {
   if (!S.pending.length) { el.innerHTML='<div class="empty">Tidak ada WO pending dalam scope Anda.</div>'; return; }
   var html='<div class="sub">'+S.pending.length+' WO menunggu approval</div>';
   S.pending.forEach(function(wo) {
     var isL2 = wo.status==='pending_superintendent';
     var othersBadge = wo.is_others ? '<span class="badge" style="background:#0ea5e9">OTHERS</span>' : '';
+    var tl = wo.timeliness;
+    var tlBadge = tl ? '<span class="badge" style="background:'+(tl.status==='on_time'?'#15803d':tl.status==='late'?'#b45309':'#b91c1c')+'">⏱️ '+esc(tl.label)+' ×'+tl.factor+'</span>' : '';
     html+='<div class="card"><div class="cardTop"><b>'+esc(wo.wo_number)+'</b><span class="badge" style="background:'+(isL2?'#b45309':'#7c3aed')+'">'+(isL2?'⏳ L2':'⏳ L1')+'</span>'+
-      '<span class="badge" style="background:#334155">'+esc(wo.section)+'</span>'+othersBadge+'</div>'+
+      '<span class="badge" style="background:#334155">'+esc(wo.section)+'</span>'+othersBadge+tlBadge+'</div>'+
       '<div class="cardBody"><b>'+esc(wo.component_name||'-')+'</b>'+(wo.unit_name?' · '+esc(wo.unit_name):'')+'<br>'+
-      (wo.work_condition?'Kondisi: '+esc(wcLabel(wo.work_condition))+' · ':'')+'Aktual: '+(wo.actual_hours||'-')+' jam · Target: '+(wo.target_hours||0)+' jam'+
-      (wo.part_category?'<br>🔧 Part: '+esc(wo.part_category):'')+
+      'Kondisi: '+esc(wcLabel(wo.work_condition))+' · Aktual: '+(wo.actual_hours||'-')+' jam · Target: '+(wo.target_hours||0)+' jam<br>'+
+      'Base: '+(wo.base_points||0)+' pts · Unit Factor: '+(wo.unit_factor||1)+' 🔒<br>'+
+      '🔧 Part: '+esc(partLabel(wo.part_category))+
       (wo.hour_meter?' · HM: '+esc(wo.hour_meter):'')+(wo.kilometers?' · KM: '+esc(wo.kilometers):'')+
       '<br>👥 Tim: '+(wo.team||[]).map(function(t){return esc(t.name);}).join(', ')+'</div>'+
       (wo.keterangan?'<div class="ket">📝 '+esc(wo.keterangan)+'</div>':'')+
