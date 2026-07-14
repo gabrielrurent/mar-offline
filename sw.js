@@ -1,4 +1,4 @@
-var CACHE = 'mar-v25';
+var CACHE = 'mar-v26';
 var ASSETS = ['./', './index.html', './app.js', './manifest.json', './icon-192.png', './icon-512.png'];
 self.addEventListener('install', function(e) {
   e.waitUntil(caches.open(CACHE).then(function(c){return c.addAll(ASSETS);}));
@@ -105,9 +105,10 @@ function swCheckPending() {
             var save = function(){ return swReq(d, 'kv', 'readwrite', function(s){ return s.put(cur, 'sw_snap'); }); };
             if (prev === undefined || prev === null) return save().then(function(){ return 0; });
             var msgs = [];
+            var stageLbl = (role === 'superintendent') ? '(L2)' : '(L1)';
             for (var id in cur) {
               if (!prev[id]) {
-                if (isApprover) msgs.push('📋 ' + cur[id].n + ' menunggu approval');
+                if (isApprover) msgs.push('📋 Ada WO perlu di-approve ' + stageLbl + ': ' + cur[id].n);
                 else if (cur[id].s === 'pending_mechanic_work') msgs.push('📝 WO baru: ' + cur[id].n);
               } else if (prev[id].s !== cur[id].s) {
                 if (cur[id].s === 'approved') msgs.push('✅ ' + cur[id].n + ' disetujui');
