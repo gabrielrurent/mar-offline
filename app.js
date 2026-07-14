@@ -4,7 +4,7 @@
    ============================================================ */
 
 var CONFIG = { API_URL: 'https://script.google.com/macros/s/AKfycbwlwlQvOGVF6FdKkYRNlbgdJCets5L-0AfufMB4_79_HzvoQkeE9aZAqkKZiXCZHXnG6Q/exec' };
-var APP_VERSION = 'v24'; // samakan dgn CACHE di sw.js tiap rilis
+var APP_VERSION = 'v25'; // samakan dgn CACHE di sw.js tiap rilis
 var S = { token:null, me:null, role:null, wos:[], refs:null, refsAt:null, pending:[], active:[], approved:[], outbox:[], lastSync:null, syncing:false, tab:'wos', appSub:'pending', showOutbox:false, crossFunc:false };
 // PERF: katalog referensi (±1400 job) berat — tarik ulang maks 1x/12 jam.
 var REFS_TTL_MS = 12*60*60*1000;
@@ -90,6 +90,41 @@ function requestPeriodicSync() {
   } catch (e) {}
 }
 
+/* ── Web Push: daftarkan "alamat pos" HP ini ke server (idempotent) ── */
+function _urlB64ToUint8(b64) {
+  var pad = new Array((4 - (b64.length % 4)) % 4 + 1).join('=');
+  var base = (b64 + pad).replace(/-/g, '+').replace(/_/g, '/');
+  var raw = atob(base);
+  var arr = new Uint8Array(raw.length);
+  for (var i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
+  return arr;
+}
+function subscribePush() {
+  try {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+    if (!('Notification' in window) || Notification.permission !== 'granted') return;
+    if (!S.token) return;
+    navigator.serviceWorker.ready.then(function(reg) {
+      return reg.pushManager.getSubscription().then(function(sub) {
+        if (sub) return sub;
+        return api('get_vapid_key').then(function(r) {
+          if (!r.success || !r.result || !r.result.key) return null;
+          return reg.pushManager.subscribe({userVisibleOnly: true, applicationServerKey: _urlB64ToUint8(r.result.key)});
+        });
+      });
+    }).then(function(sub) {
+      if (!sub) return;
+      var j = sub.toJSON();
+      // guard: kirim ulang hanya bila endpoint berubah / belum tercatat (server upsert)
+      return kvGet('push_saved').then(function(saved) {
+        if (saved === j.endpoint) return;
+        return api('save_push_sub', {endpoint: j.endpoint, p256dh: (j.keys && j.keys.p256dh) || '', auth: (j.keys && j.keys.auth) || ''})
+          .then(function(r2) { if (r2.success) return kvSet('push_saved', j.endpoint); });
+      });
+    }).catch(function(){});
+  } catch (e) {}
+}
+
 /* ── Background Sync: minta Chrome kirim antrean nanti walau app ditutup ── */
 function requestBgSync() {
   try {
@@ -118,7 +153,7 @@ function syncNow(manual) {
       else { tasks.push(pullPending()); tasks.push(pullActive()); if (refsStale()) tasks.push(pullRefs()); }
       return Promise.all(tasks);
     })
-    .then(function() { S.lastSync = new Date().toISOString(); return kvSet('last_sync',S.lastSync); })
+    .then(function() { S.lastSync = new Date().toISOString(); subscribePush(); return kvSet('last_sync',S.lastSync); })
     .catch(function(e) { requestBgSync(); toast('⚠️ Sync gagal: '+e.message); })
     .then(function() { S.syncing = false; return refreshOutbox(); })
     .then(renderAll);
