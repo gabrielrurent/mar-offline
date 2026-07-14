@@ -45,10 +45,37 @@ function api(action,data,opId) {
     .then(function(r){return r.json();});
 }
 
+/* ── Install PWA: tombol 1-tap via beforeinstallprompt ── */
+var _installPrompt = null;
+window.addEventListener('beforeinstallprompt', function(e) {
+  e.preventDefault();
+  _installPrompt = e;
+  var b = document.getElementById('installBtn'); if (b) b.style.display = '';
+});
+window.addEventListener('appinstalled', function() {
+  _installPrompt = null;
+  var b = document.getElementById('installBtn'); if (b) b.style.display = 'none';
+  toast('✅ Terinstal! Buka dari ikon MAR di layar utama.');
+});
+function doInstall() {
+  if (!_installPrompt) { toast('Buka menu Chrome ⋮ → "Instal aplikasi" / "Tambahkan ke layar utama"'); return; }
+  _installPrompt.prompt();
+  _installPrompt.userChoice.then(function(){ _installPrompt = null; });
+}
+
+/* ── Background Sync: minta Chrome kirim antrean nanti walau app ditutup ── */
+function requestBgSync() {
+  try {
+    if ('serviceWorker' in navigator && 'SyncManager' in window) {
+      navigator.serviceWorker.ready.then(function(reg){ return reg.sync.register('mar-outbox'); }).catch(function(){});
+    }
+  } catch (e) {}
+}
+
 /* ── Sync ── */
 function syncNow(manual) {
   if (S.syncing) return Promise.resolve();
-  if (!navigator.onLine) { if (manual) toast('📴 Offline — data aman di antrean'); renderAll(); return Promise.resolve(); }
+  if (!navigator.onLine) { requestBgSync(); if (manual) toast('📴 Offline — data aman di antrean, terkirim otomatis saat ada sinyal'); renderAll(); return Promise.resolve(); }
   S.syncing = true; renderAll();
   return flushOutbox()
     .then(function() {
@@ -59,7 +86,7 @@ function syncNow(manual) {
       return Promise.all(tasks);
     })
     .then(function() { S.lastSync = new Date().toISOString(); return kvSet('last_sync',S.lastSync); })
-    .catch(function(e) { toast('⚠️ Sync gagal: '+e.message); })
+    .catch(function(e) { requestBgSync(); toast('⚠️ Sync gagal: '+e.message); })
     .then(function() { S.syncing = false; return refreshOutbox(); })
     .then(renderAll);
 }
