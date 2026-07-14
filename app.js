@@ -182,8 +182,8 @@ function openCreateForm() {
     } else { toast('📴 Sync dulu saat ada sinyal untuk memuat referensi'); }
     return;
   }
-  // Refs basi → refresh senyap di belakang (dipakai saat form dibuka berikutnya)
-  if (navigator.onLine && refsStale()) { pullRefs().catch(function(){}); }
+  // Refs basi / tanpa work_conditions → refresh senyap (sembuhkan cache lama)
+  if (navigator.onLine && (refsStale() || !(S.refs.work_conditions && S.refs.work_conditions.length))) { pullRefs().catch(function(){}); }
   // reset form
   var secs = S.refs.sections || [];
   var secHtml = '';
@@ -194,11 +194,13 @@ function openCreateForm() {
   }
   document.getElementById('cSecPicker').innerHTML = secHtml;
   document.getElementById('cWc').innerHTML = '';
-  if (S.refs.work_conditions) {
-    var wcs = S.refs.work_conditions;
-    for (var wi=0;wi<wcs.length;wi++) {
-      document.getElementById('cWc').innerHTML += '<option value="'+esc(wcs[wi].key||wcs[wi].value||wcs[wi])+'">'+esc(wcs[wi].label||wcs[wi])+'</option>';
-    }
+  // Fallback bawaan bila refs basi/kosong → dropdown SELALU terisi (key stabil).
+  // Factor uang TETAP dihitung server dari Config_Factors, bukan dari sini.
+  var wcs = (S.refs && S.refs.work_conditions && S.refs.work_conditions.length)
+    ? S.refs.work_conditions
+    : [{key:'normal',label:'Shift 1'},{key:'difficult',label:'Shift 2'},{key:'extreme',label:'Kondisi Ekstrim'}];
+  for (var wi=0;wi<wcs.length;wi++) {
+    document.getElementById('cWc').innerHTML += '<option value="'+esc(wcs[wi].key||wcs[wi].value||wcs[wi])+'">'+esc(wcs[wi].label||wcs[wi])+'</option>';
   }
   document.getElementById('cKet').value='';
   document.getElementById('cTeamList').innerHTML='';
