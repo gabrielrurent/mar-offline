@@ -408,8 +408,12 @@ function openApproveForm(woId) {
   if (!activeApproval) return;
   var a = activeApproval;
   document.getElementById('aTitle').textContent = a.wo_number;
-  document.getElementById('aDesc').innerHTML = esc(a.component_name||'-')+'<br>'+esc(a.unit_name||'-')+' · target '+a.target_hours+' jam'+
-    (a.actual_hours ? '<br>Aktual: '+a.actual_hours+' jam' : '')+(a.part_category ? '<br>Part: '+a.part_category : '')+
+  document.getElementById('aDesc').innerHTML = '<b>'+esc(a.component_name||'-')+'</b>'+(a.is_others?' <span class="badge" style="background:#0ea5e9">OTHERS</span>':'')+'<br>'+
+    (a.unit_name?esc(a.unit_name)+' · ':'')+'Target: '+(a.target_hours||0)+' jam'+
+    (a.work_condition ? '<br>Kondisi: '+esc(wcLabel(a.work_condition)) : '')+
+    (a.actual_hours ? '<br>Aktual: '+a.actual_hours+' jam' : '')+
+    (a.part_category ? '<br>🔧 Part: '+esc(a.part_category) : '')+
+    (a.hour_meter ? '<br>HM: '+esc(a.hour_meter) : '')+(a.kilometers ? ' · KM: '+esc(a.kilometers) : '')+
     (a.keterangan ? '<br>📝 '+esc(a.keterangan) : '');
   document.getElementById('aTeam').textContent = 'Tim: '+(a.team||[]).map(function(t){return t.name;}).join(', ');
   document.getElementById('aStatus').textContent = 'Status: '+a.status;
@@ -499,7 +503,10 @@ function renderAll() {
   document.getElementById('meName').textContent=S.me?(S.me.name||S.me.mechanic_id):'';
   // tabs
   var isCreator = S.role!=='mechanic';
+  // L1/L2 (approver): sembunyikan tab "WO Saya" — hanya Buat WO + Approval
+  if (isCreator && S.tab==='wos') S.tab='approval';
   document.getElementById('tabBar').style.display = isCreator ? 'flex' : 'none';
+  document.getElementById('tabWos').style.display = isCreator ? 'none' : '';
   document.getElementById('tabWos').className = 'tab'+(S.tab==='wos'?' active':'');
   document.getElementById('tabCreate').className = 'tab'+(S.tab==='create'?' active':'');
   document.getElementById('tabApproval').className = 'tab'+(S.tab==='approval'?' active':'');
@@ -541,16 +548,20 @@ function renderCreateTab(el) {
   el.innerHTML='<button class="big" onclick="openCreateForm()" style="margin-bottom:12px">➕ Buat Work Order Baru</button>'+
     '<div class="sub">Data referensi: '+(S.refs.jobs_field||[]).length+' job field, '+(S.refs.jobs_workshop||[]).length+' job WS, '+(S.refs.components||[]).length+' komponen tyreman</div>';
 }
+function wcLabel(wc){ return wc==='normal'?'Ringan':wc==='difficult'?'Sedang':wc==='extreme'?'Berat':(wc||'-'); }
 function renderApprovalTab(el) {
   if (!S.pending.length) { el.innerHTML='<div class="empty">Tidak ada WO pending dalam scope Anda.</div>'; return; }
   var html='<div class="sub">'+S.pending.length+' WO menunggu approval</div>';
   S.pending.forEach(function(wo) {
     var isL2 = wo.status==='pending_superintendent';
+    var othersBadge = wo.is_others ? '<span class="badge" style="background:#0ea5e9">OTHERS</span>' : '';
     html+='<div class="card"><div class="cardTop"><b>'+esc(wo.wo_number)+'</b><span class="badge" style="background:'+(isL2?'#b45309':'#7c3aed')+'">'+(isL2?'⏳ L2':'⏳ L1')+'</span>'+
-      '<span class="badge" style="background:#334155">'+esc(wo.section)+'</span></div>'+
-      '<div class="cardBody">'+esc(wo.component_name||'-')+(wo.unit_name?' · '+esc(wo.unit_name):'')+'<br>'+
-      'Aktual: '+(wo.actual_hours||'-')+' jam · Target: '+wo.target_hours+' jam'+(wo.part_category?' · Part: '+wo.part_category:'')+
-      '<br>Tim: '+(wo.team||[]).map(function(t){return t.name;}).join(', ')+'</div>'+
+      '<span class="badge" style="background:#334155">'+esc(wo.section)+'</span>'+othersBadge+'</div>'+
+      '<div class="cardBody"><b>'+esc(wo.component_name||'-')+'</b>'+(wo.unit_name?' · '+esc(wo.unit_name):'')+'<br>'+
+      (wo.work_condition?'Kondisi: '+esc(wcLabel(wo.work_condition))+' · ':'')+'Aktual: '+(wo.actual_hours||'-')+' jam · Target: '+(wo.target_hours||0)+' jam'+
+      (wo.part_category?'<br>🔧 Part: '+esc(wo.part_category):'')+
+      (wo.hour_meter?' · HM: '+esc(wo.hour_meter):'')+(wo.kilometers?' · KM: '+esc(wo.kilometers):'')+
+      '<br>👥 Tim: '+(wo.team||[]).map(function(t){return esc(t.name);}).join(', ')+'</div>'+
       (wo.keterangan?'<div class="ket">📝 '+esc(wo.keterangan)+'</div>':'')+
       '<button class="big" onclick="openApproveForm(\''+esc(String(wo.id))+'\')">📋 Review & Approve</button></div>';
   });
