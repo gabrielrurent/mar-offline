@@ -4,6 +4,7 @@
    ============================================================ */
 
 var CONFIG = { API_URL: 'https://script.google.com/macros/s/AKfycbwlwlQvOGVF6FdKkYRNlbgdJCets5L-0AfufMB4_79_HzvoQkeE9aZAqkKZiXCZHXnG6Q/exec' };
+var APP_VERSION = 'v24'; // samakan dgn CACHE di sw.js tiap rilis
 var S = { token:null, me:null, role:null, wos:[], refs:null, refsAt:null, pending:[], active:[], approved:[], outbox:[], lastSync:null, syncing:false, tab:'wos', appSub:'pending', showOutbox:false, crossFunc:false };
 // PERF: katalog referensi (±1400 job) berat — tarik ulang maks 1x/12 jam.
 var REFS_TTL_MS = 12*60*60*1000;
@@ -110,10 +111,11 @@ function syncNow(manual) {
         toast('✅ '+sent+' operasi terkirim — tidak lagi antre');
         if (document.hidden) notifyLocal('✅ '+sent+' operasi terkirim — tidak lagi antre');
       }
-      var tasks = [pullWos()];
-      // PERF: refs (katalog job ±1400 baris) hanya bila kadaluarsa (12 jam) —
-      // pending approval tetap ditarik tiap sync karena selalu berubah.
-      if (S.role !== 'mechanic') { tasks.push(pullPending()); tasks.push(pullActive()); if (refsStale()) tasks.push(pullRefs()); }
+      // PERF/R2: mekanik tarik WO-nya; approver TIDAK perlu pull_my_wos (tab
+      // WO Saya disembunyikan) — hemat 1 panggilan API per sync.
+      var tasks = [];
+      if (S.role === 'mechanic') { tasks.push(pullWos()); }
+      else { tasks.push(pullPending()); tasks.push(pullActive()); if (refsStale()) tasks.push(pullRefs()); }
       return Promise.all(tasks);
     })
     .then(function() { S.lastSync = new Date().toISOString(); return kvSet('last_sync',S.lastSync); })
@@ -203,11 +205,21 @@ function saveTokenOffline(t) {
   kvSet('token',t).then(function() { toast('📴 Token disimpan — verifikasi saat ada sinyal'); showScreen('main'); renderAll(); });
 }
 function doLogout() {
-  if (!confirm('Logout? Data lokal akan dihapus.')) return;
+  // AUDIT K2: antrean belum terkirim = laporan kerja/approval yang BELUM masuk server.
+  // Logout menghapusnya permanen → wajib peringatan eksplisit.
+  var pend = S.outbox.filter(function(o){return o.status==='queued'||o.status==='failed_retry';}).length;
+  var msg = pend > 0
+    ? '⚠️ PERHATIAN: masih ada '+pend+' operasi BELUM TERKIRIM di antrean.\nLogout akan MENGHAPUS antrean itu PERMANEN (laporan/approval hilang).\n\nSaran: batal, cari sinyal, tekan 🔄 Sync sampai antrean kosong, baru logout.\n\nTetap logout dan hapus antrean?'
+    : 'Logout? Data lokal akan dihapus.';
+  if (!confirm(msg)) return;
   var tx = db.transaction(['kv','outbox'],'readwrite');
   tx.objectStore('kv').clear();
   tx.objectStore('outbox').clear();
-  tx.oncomplete = function() { S = {token:null,me:null,role:null,wos:[],refs:null,pending:[],outbox:[],lastSync:null,syncing:false,tab:'wos'}; showScreen('login'); };
+  tx.oncomplete = function() {
+    // AUDIT K3: reset HARUS bentuk state lengkap — field hilang = crash setelah re-login
+    S = { token:null, me:null, role:null, wos:[], refs:null, refsAt:null, pending:[], active:[], approved:[], outbox:[], lastSync:null, syncing:false, tab:'wos', appSub:'pending', showOutbox:false, crossFunc:false };
+    showScreen('login');
+  };
 }
 
 /* ── Tab ── */
@@ -220,7 +232,9 @@ function openSubmitForm(woId) {
   for (var i=0;i<S.wos.length;i++) if (String(S.wos[i].id)===String(woId)) activeWo=S.wos[i];
   if (!activeWo) return;
   document.getElementById('fTitle').textContent = activeWo.wo_number;
-  document.getElementById('fDesc').textContent = (activeWo.component_name||'')+(activeWo.unit_name?' · '+activeWo.unit_name:'');
+  document.getElementById('fDesc').innerHTML = '<b>'+esc(activeWo.component_name||'')+'</b>'+(activeWo.unit_name?' · '+esc(activeWo.unit_name):'')+
+    '<br>📍 '+esc(locLabel(activeWo.location))+' · Kondisi: '+esc(wcLabel(activeWo.work_condition))+
+    (activeWo.target_hours?' · Target: '+fmtJamMenit(activeWo.target_hours):'');
   document.getElementById('fKet').textContent = activeWo.keterangan ? '📝 '+activeWo.keterangan : '';
   document.getElementById('fKet').style.display = activeWo.keterangan ? 'block' : 'none';
   document.getElementById('fStart').value=''; document.getElementById('fEnd').value='';
@@ -667,7 +681,7 @@ function renderAll() {
   document.getElementById('netDot').style.background=on?'#22c55e':'#ef4444';
   document.getElementById('netText').textContent=on?'Online':'Offline';
   document.getElementById('syncBtn').textContent=S.syncing?'⏳':'🔄 Sync';
-  document.getElementById('lastSync').textContent=S.lastSync?'Sync: '+new Date(S.lastSync).toLocaleString('id-ID'):'Belum sync';
+  document.getElementById('lastSync').textContent=(S.lastSync?'Sync: '+new Date(S.lastSync).toLocaleString('id-ID'):'Belum sync')+' · '+APP_VERSION;
   document.getElementById('meName').textContent=S.me?(S.me.name||S.me.mechanic_id):'';
   // tabs
   var isCreator = S.role!=='mechanic';
@@ -714,8 +728,10 @@ function renderWos(el) {
   S.wos.forEach(function(wo) {
     var op=opByWo[wo.id]; var b=badgeFor(wo,op);
     var canFill=String(wo.status)==='pending_mechanic_work'&&(!op||op.status==='failed');
-    html+='<div class="card"><div class="cardTop"><b>'+esc(wo.wo_number)+'</b><span class="badge" style="background:'+b[1]+'">'+b[0]+'</span></div>'+
-      '<div class="cardBody">'+esc(wo.component_name||'-')+(wo.unit_name?' · '+esc(wo.unit_name):'')+(wo.target_hours?' · '+wo.target_hours+' jam':'')+'</div>'+
+    html+='<div class="card"><div class="cardTop"><b>'+esc(wo.wo_number)+'</b><span class="badge" style="background:'+b[1]+'">'+b[0]+'</span>'+
+      (wo.is_others?'<span class="badge" style="background:#0ea5e9">OTHERS</span>':'')+'</div>'+
+      '<div class="cardBody"><b>'+esc(wo.component_name||'-')+'</b>'+(wo.unit_name?' · '+esc(wo.unit_name):'')+(wo.target_hours?' · Target: '+fmtJamMenit(wo.target_hours):'')+'<br>'+
+      '📍 '+esc(locLabel(wo.location))+' · Kondisi: '+esc(wcLabel(wo.work_condition))+'</div>'+
       (wo.keterangan?'<div class="ket">📝 '+esc(wo.keterangan)+'</div>':'')+
       (canFill?'<button class="big" onclick="openSubmitForm(\''+esc(String(wo.id))+'\')">✍️ Isi & Kirim</button>':'')+
       '</div>';
@@ -753,6 +769,15 @@ function switchAppSub(sub){
   renderAll();
 }
 function fmtIdr(n){ n=parseFloat(n)||0; return n.toLocaleString('id-ID'); }
+/* AUDIT T1: guard dobel-aksi — op yang masih antre utk WO ini? */
+function queuedOpFor(woId){
+  for (var i=0;i<S.outbox.length;i++){
+    var o=S.outbox[i];
+    if (String(o.wo_id)===String(woId) && (o.status==='queued'||o.status==='failed_retry')) return o;
+  }
+  return null;
+}
+function queuedNote(qop){ return '<div class="obinfo">📮 '+esc(opLabel(qop))+' — menunggu sinyal (tombol dikunci)</div>'; }
 function teamStr(team){ return (team||[]).map(function(t){ return esc(t.name)+(t.email?' <span class="sub" style="display:inline;margin:0">('+esc(t.email)+')</span>':''); }).join(', '); }
 function ovBadges(wo){ return (wo.has_override_spv?'<span class="badge" style="background:#4338ca">SPV override</span>':'')+(wo.has_override_supt?'<span class="badge" style="background:#7c3aed">SUPT override</span>':''); }
 function cancelBtn(wo){ return '<button class="big secondary" onclick="openCancelForm(\''+esc(String(wo.id))+'\',\''+esc(String(wo.wo_number))+'\')">🗑 Batalkan WO</button>'; }
@@ -774,7 +799,8 @@ function renderPendingList(){
       (wo.hour_meter?' · HM: '+esc(wo.hour_meter):'')+(wo.kilometers?' · KM: '+esc(wo.kilometers):'')+
       '<br>👥 Tim: '+teamStr(wo.team)+'</div>'+
       (wo.keterangan?'<div class="ket">📝 '+esc(wo.keterangan)+'</div>':'')+
-      '<button class="big" onclick="openApproveForm(\''+esc(String(wo.id))+'\')">📋 Review & Approve</button>'+cancelBtn(wo)+'</div>';
+      (function(){ var q=queuedOpFor(wo.id); return q ? queuedNote(q)
+        : '<button class="big" onclick="openApproveForm(\''+esc(String(wo.id))+'\')">📋 Review & Approve</button>'+cancelBtn(wo); })()+'</div>';
   });
   return html;
 }
@@ -789,7 +815,8 @@ function renderActiveList(){
       '📍 Lokasi: '+esc(locLabel(wo.location))+'<br>'+
       'Kondisi: '+esc(wcLabel(wo.work_condition))+(wo.created_by?' · Pembuat: '+esc(wo.created_by):'')+'<br>'+
       '👥 Tim: '+(wo.team_names||[]).map(function(n){return esc(n);}).join(', ')+'</div>'+
-      (wo.keterangan?'<div class="ket">📝 '+esc(wo.keterangan)+'</div>':'')+cancelBtn(wo)+'</div>';
+      (wo.keterangan?'<div class="ket">📝 '+esc(wo.keterangan)+'</div>':'')+
+      (function(){ var q=queuedOpFor(wo.id); return q ? queuedNote(q) : cancelBtn(wo); })()+'</div>';
   });
   return html;
 }
@@ -807,7 +834,8 @@ function renderApprovedList(){
       'Aktual: '+fmtJamMenit(wo.actual_hours)+(wo.part_category?' · 🔧 '+esc(partLabel(wo.part_category)):'')+
       (wo.created_at_str?' · '+esc(wo.created_at_str):'')+'<br>'+
       '👥 Tim: '+(wo.team_names||[]).map(function(n){return esc(n);}).join(', ')+'</div>'+
-      (wo.keterangan?'<div class="ket">📝 '+esc(wo.keterangan)+'</div>':'')+cancelBtn(wo)+'</div>';
+      (wo.keterangan?'<div class="ket">📝 '+esc(wo.keterangan)+'</div>':'')+
+      (function(){ var q=queuedOpFor(wo.id); return q ? queuedNote(q) : cancelBtn(wo); })()+'</div>';
   });
   return html;
 }
