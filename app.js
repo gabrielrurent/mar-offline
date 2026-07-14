@@ -4,7 +4,7 @@
    ============================================================ */
 
 var CONFIG = { API_URL: 'https://script.google.com/macros/s/AKfycbwlwlQvOGVF6FdKkYRNlbgdJCets5L-0AfufMB4_79_HzvoQkeE9aZAqkKZiXCZHXnG6Q/exec' };
-var S = { token:null, me:null, role:null, wos:[], refs:null, refsAt:null, pending:[], outbox:[], lastSync:null, syncing:false, tab:'wos', showOutbox:false };
+var S = { token:null, me:null, role:null, wos:[], refs:null, refsAt:null, pending:[], outbox:[], lastSync:null, syncing:false, tab:'wos', showOutbox:false, crossFunc:false };
 // PERF: katalog referensi (±1400 job) berat — tarik ulang maks 1x/12 jam.
 var REFS_TTL_MS = 12*60*60*1000;
 function refsStale() { return !S.refs || !S.refsAt || (Date.now() - new Date(S.refsAt).getTime() > REFS_TTL_MS); }
@@ -202,6 +202,7 @@ function openCreateForm() {
   }
   document.getElementById('cKet').value='';
   document.getElementById('cTeamList').innerHTML='';
+  S.crossFunc=false; var _cf=document.getElementById('cCrossFunc'); if(_cf) _cf.checked=false;
   addTeamMember();
   onCreateSectionChange();
   // listeners
@@ -326,15 +327,19 @@ function onCasSub() {
     }
   }
 }
+function onCrossFuncToggle(){ var cf=document.getElementById('cCrossFunc'); S.crossFunc = !!(cf && cf.checked); refreshCreateMechanics(); }
 function refreshCreateMechanics() {
   var sec = getCreateSection();
   var mechs = S.refs ? (S.refs.mechanics||[]) : [];
+  var showAll = !!S.crossFunc;
   var rows = document.querySelectorAll('.cTeamSel');
   for (var r=0;r<rows.length;r++) {
     var cur = rows[r].value;
     rows[r].innerHTML = '<option value="">-- Pilih Mekanik --</option>';
     for (var m=0;m<mechs.length;m++) {
       var ms = String(mechs[m].section||'').toLowerCase();
+      // Default: hanya mekanik section terpilih. Lintas fungsi → tampilkan semua (dgn tag section).
+      if (!showAll && ms !== sec) continue;
       var tag = (ms && ms !== sec) ? ' ['+ms+']' : '';
       rows[r].innerHTML += '<option value="'+esc(mechs[m].mechanic_id)+'">'+esc(mechs[m].mechanic_name)+esc(tag)+'</option>';
     }
@@ -482,6 +487,12 @@ function toast(msg) {
   clearTimeout(t._h); t._h=setTimeout(function(){t.style.display='none';},3500);
 }
 function toggleOutboxDetail(){ S.showOutbox = !S.showOutbox; renderAll(); }
+function opLabel(o){
+  var names = {submit_work:'Submit', create_wo:'Buat WO', approve_l1:'L1', approve_l2:'L2', reject:'Reject'};
+  var base = o.label || names[o.action] || o.action;
+  if (o.wo_number && String(base).indexOf(o.wo_number)===-1) base += ' '+o.wo_number;
+  return base;
+}
 function fmtDateTime(iso){
   if(!iso) return '-';
   var d = new Date(iso);
@@ -526,7 +537,7 @@ function renderAll() {
     od.style.display='block';
     od.innerHTML = queued.map(function(o){
       return '<div class="card" style="padding:10px;margin-bottom:6px">'+
-        '<b>'+esc(o.label||o.action)+'</b>'+(o.wo_number?' — '+esc(o.wo_number):'')+
+        '<b>'+esc(opLabel(o))+'</b>'+
         '<div class="sub" style="margin:2px 0 0">🕒 Masuk antrean: '+esc(fmtDateTime(o.created_at))+'</div>'+
         '</div>';
     }).join('');
@@ -534,7 +545,7 @@ function renderAll() {
   // failed outbox
   var failHtml = '';
   S.outbox.filter(function(o){return o.status==='failed';}).forEach(function(o) {
-    failHtml += '<div class="card err"><b>'+(o.label||o.action)+' — '+(o.wo_number||'')+'</b><br>'+esc(o.error||'-')+
+    failHtml += '<div class="card err"><b>'+esc(opLabel(o))+'</b><br>'+esc(o.error||'-')+
       '<br><button class="mini" onclick="retryOp(\''+o.op_id+'\')">🔁 Coba lagi</button> '+
       '<button class="mini gray" onclick="discardOp(\''+o.op_id+'\')">🗑 Buang</button></div>';
   });

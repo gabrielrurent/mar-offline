@@ -165,6 +165,7 @@
       <label>Keterangan (opsional)</label>
       <input class="inp" id="cKet" placeholder="cth: unit di pit 3">
       <label>Tim Mekanik *</label>
+      <label class="chkRow" style="margin:2px 0 8px"><input type="checkbox" id="cCrossFunc" onchange="onCrossFuncToggle()">🔓 Tampilkan mekanik semua section (lintas fungsi)</label>
       <div id="cTeamList"></div>
       <button class="mini" onclick="addTeamMember()" style="margin-bottom:10px">+ Tambah Mekanik</button>
       <button class="big" onclick="queueCreate()">📮 Simpan & Antre</button>
